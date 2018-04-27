@@ -108,10 +108,10 @@ function handleLoadDataFromServerClick(){
 function loadDataFromServer(){
     
     $.ajax({
-        url: 'http://s-apis.learningfuze.com/sgt/get',
-        method: 'POST',
-        dataType: 'JSON',       
-        data: {api_key:apiKey},
+        //url: 'http://localhost:3000/sgt/get',
+        url: './php/datapoint.php?action=read',
+        method: 'GET',
+        dataType: 'JSON',
         success: function(data) {
             if(data.success){
                 renderStudentsFromServer(data);
@@ -139,14 +139,14 @@ function loadDataFromServer(){
  */
 function sendNewStudentToServer(student){
 
-    var dataToUpload = {
-        api_key:apiKey,
+    var dataToUpload = {        
         name:student.name,
         course:student.course,
         grade:student.grade
     }
     $.ajax({
-        url: 'http://s-apis.learningfuze.com/sgt/create',
+        //url: 'http://localhost:3000/sgt/create',
+        url: './php/datapoint.php?action=create',
         method: 'POST',
         dataType: 'JSON',       
         data: dataToUpload,
@@ -314,12 +314,12 @@ function renderGradeAverage(average){
  */
 function removeStudent(student,trElement) {
     
-    var dataToUpload = {
-        api_key:apiKey,
+    var dataToUpload = {        
         student_id:student.id
     }
     $.ajax({
-        url: 'http://s-apis.learningfuze.com/sgt/delete',
+        //url: 'http://localhost:3000/sgt/delete',
+        url: './php/datapoint.php?action=delete',
         method: 'POST',
         dataType: 'JSON',       
         data: dataToUpload,
