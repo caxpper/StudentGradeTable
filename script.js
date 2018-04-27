@@ -20,6 +20,7 @@ $(document).ready(initializeApp);
  * ];
  */
 var student_array = [];
+const apiKey = 'kw7Uq4dfnz';
 
 /***************************************************************************************************
 * initializeApp 
@@ -29,6 +30,7 @@ var student_array = [];
 */
 function initializeApp(){
     addClickHandlersToElements();
+    loadDataFromServer();
 }
 
 /***************************************************************************************************
@@ -38,8 +40,9 @@ function initializeApp(){
 *     
 */
 function addClickHandlersToElements(){
-    $('.btn-success').click(handleAddClicked);
-    $('.btn-default').click(handleCancelClick);
+    $('#addButton').click(handleAddClicked);
+    $('#cancelButton').click(handleCancelClick);
+    $('#loadButton').click(handleLoadDataFromServerClick);
 }
 
 /***************************************************************************************************
@@ -48,8 +51,31 @@ function addClickHandlersToElements(){
  * @return: 
        none
  */
-function handleAddClicked(){
-    addStudent();
+function handleAddClicked(){   
+    var spinner = $('<span>',{
+        class:'glyphicon glyphicon-refresh glyphicon-refresh-animate'
+    });
+    $(this).prepend(spinner); 
+     //check the conditions of the inputs
+    var errorStr = '';
+    if($('#studentName').val().length<2){
+        errorStr += "'name' must be at least two characters long. ";
+    }
+    if($('#course').val().length<2){
+         errorStr += "'course' must be at least two characters long. ";
+    }    
+    if(isNaN(parseFloat($('#studentGrade').val()))){
+        errorStr += "'grade' must be a number. ";
+    }
+    if(errorStr ===''){
+        var student = addStudent($('#studentName').val(),$('#course').val(),$('#studentGrade').val()); 
+        sendNewStudentToServer(student);
+    }else{
+        showErrorModal(errorStr);
+        $('.glyphicon-refresh-animate').remove(); 
+    }
+          
+    
 }
 /***************************************************************************************************
  * handleCancelClicked - Event Handler when user clicks the cancel button, should clear out student form
@@ -60,26 +86,132 @@ function handleAddClicked(){
 function handleCancelClick(){
     clearAddStudentFormInputs();
 }
+
+/**
+ * handleLoadDataFromServerClick - Event Handler when user clicks the load data button, should make a call to the server
+ * and load the student data
+ * @param: {undefined} none
+ * @returns: {undefined} none
+ * @calls: loadDataFromServer
+ */
+function handleLoadDataFromServerClick(){
+    var spinner = $('<span>',{
+        class:'glyphicon glyphicon-refresh glyphicon-refresh-animate'
+    });
+    $(this).prepend(spinner); 
+    loadDataFromServer();
+}
+
+/**
+ * loadDataFromServer - Get data for the students using ajax to call the server
+ */
+function loadDataFromServer(){
+    
+    $.ajax({
+        url: 'http://s-apis.learningfuze.com/sgt/get',
+        method: 'POST',
+        dataType: 'JSON',       
+        data: {api_key:apiKey},
+        success: function(data) {
+            if(data.success){
+                renderStudentsFromServer(data);
+            }else{
+                if(data.errors === undefined){
+                    showErrorModal(data.error);                   
+                }else{
+                    showErrorModal(data.errors);                    
+                }
+            }
+            $('.glyphicon-refresh-animate').remove();
+        },
+        error: function(err) {
+            showErrorModal('We have some issues with the server. Please try again later.'); 
+            $('.glyphicon-refresh-animate').remove();
+        }
+    });
+
+}
+
+/**
+ * sendNewStudentToServer - call a server through ajax to save a student
+ * 
+ * @param {*} student Object with the data for th student
+ */
+function sendNewStudentToServer(student){
+
+    var dataToUpload = {
+        api_key:apiKey,
+        name:student.name,
+        course:student.course,
+        grade:student.grade
+    }
+    $.ajax({
+        url: 'http://s-apis.learningfuze.com/sgt/create',
+        method: 'POST',
+        dataType: 'JSON',       
+        data: dataToUpload,
+        success: function(data) {
+            //If everything went well we add the id to the student and add the student to the array
+            if(data.success){
+                //We add the id value to the student
+                student.id=data.new_id;
+                //add the student object to the global variable student array
+                student_array.push(student);                 
+                updateStudentList(student_array);
+                clearAddStudentFormInputs();
+            }else{
+                //If there is an error from interacting with the DB we show in the modal
+                if(data.errors === undefined){
+                    showErrorModal(data.error);                   
+                }else{
+                    showErrorModal(data.errors);
+                }               
+            }
+            $('.glyphicon-refresh-animate').remove();            
+        },
+        //If there is an error with the call to the server we show in the modal
+        error: function(err) {
+            showErrorModal('We have some issues with the server. Please try again later.'); 
+            $('.glyphicon-refresh-animate').remove();
+        }
+    });
+}
+
+/**
+ * renderStudentsFromServer - We get the data from the server and add the student to the array and create
+ * the DOM elements
+ * 
+ * @param {*} data - Data from the server with the info for students
+ * @return undefined
+ */
+function renderStudentsFromServer(data){
+    var arrayOfStudents = data.data;
+    var student;
+    for(var i=0; i < arrayOfStudents.length; i++){
+        student = addStudent(arrayOfStudents[i].name,arrayOfStudents[i].course,arrayOfStudents[i].grade,arrayOfStudents[i].id);
+        student_array.push(student); 
+    }    
+    clearAddStudentFormInputs();
+    updateStudentList(student_array);
+}
+
 /***************************************************************************************************
  * addStudent - creates a student objects based on input fields in the form and adds the object to global student array
  * @param {undefined} none
  * @return undefined
  * @calls clearAddStudentFormInputs, updateStudentList
  */
-function addStudent(){
-    //take the values from the inputs in the page and create and student object with them
-    var studentName = $('#studentName').val();
-    var course = $('#course').val();
-    var studentGrade = $('#studentGrade').val();
+function addStudent(studentName,course,studentGrade,id){
+   
+    //take the values from the inputs in the page and create and student object with them   
     var student = {
+        id:id,
         name: studentName,
         course: course,
         grade: studentGrade
     }
-    //add the student object to the global variable student array
-    student_array.push(student);
-    clearAddStudentFormInputs();
-    updateStudentList(student_array)
+    
+    return student;
 }
 /***************************************************************************************************
  * clearAddStudentForm - clears out the form values based on inputIds variable
@@ -99,8 +231,10 @@ function renderStudentOnDom(studentObj){
     var tr = $('<tr>');
     //create a td element for every key in student object
     for(var key in studentObj){
-        var td = $('<td>').text(studentObj[key]);
-        tr.append(td);
+        if(key !== 'id'){
+            var td = $('<td>').text(studentObj[key]);
+            tr.append(td);
+        }
     }
     var td = $('<td>');
     //add a button to delete that row
@@ -109,10 +243,13 @@ function renderStudentOnDom(studentObj){
         type: "button",
         text: 'Delete',
         click: function () {
+            var spinner = $('<span>',{
+                class:'glyphicon glyphicon-refresh glyphicon-refresh-animate'
+            });
+            $(this).prepend(spinner); 
             //remove the student from the array
-            removeStudent(studentObj);
-            //remove the html elment (tr) from the table
-            $(this).parent().parent().remove();
+            removeStudent(studentObj,tr);
+           
         }
     });
     td.append(button);
@@ -175,15 +312,49 @@ function renderGradeAverage(average){
  *
  * @param studentObj The student you want to delete
  */
-function removeStudent(studentObj) {
-    // look for the object in the array to get the index
-    var index = student_array.indexOf(studentObj);
-    //delete the object from the array of students
-    student_array.splice(index, 1);
-    //recalculate the average
-    var average = calculateGradeAverage(student_array);
-    renderGradeAverage(average);
+function removeStudent(student,trElement) {
+    
+    var dataToUpload = {
+        api_key:apiKey,
+        student_id:student.id
+    }
+    $.ajax({
+        url: 'http://s-apis.learningfuze.com/sgt/delete',
+        method: 'POST',
+        dataType: 'JSON',       
+        data: dataToUpload,
+        success: function(data) {
+            //If everything went well we add the id to the student and add the student to the array
+            if(data.success){
+                // look for the object in the array to get the index
+                var index = student_array.indexOf(student);
+                //delete the object from the array of students
+                student_array.splice(index, 1);
+                //recalculate the average
+                var average = calculateGradeAverage(student_array);
+                renderGradeAverage(average);
+                 //remove the html elment (tr) from the table
+                 trElement.remove();
+            }else{
+                if(data.errors === undefined){
+                    showErrorModal(data.error);                   
+                }else{
+                    showErrorModal(data.errors);
+                }
+            }
+            $('.glyphicon-refresh-animate').remove();
+        },
+        error: function(err) {
+            showErrorModal('We have some issues with the server. Please try again later.');           
+            $('.glyphicon-refresh-animate').remove();
+        }
+    });
+    
 }
 
-
+function showErrorModal(error){
+    $('#error').text(error);
+    $('#errorsModal').modal('show');
+    console.error('error:' + error);
+}
 
