@@ -1,3 +1,6 @@
 .DS_Store
 .idea
 README.md
+./node/mysqlCredentials.js
+./node/node_modules
+./php/mysql_connect.php
